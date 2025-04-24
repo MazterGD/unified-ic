@@ -68,10 +68,10 @@ export function PackForm({
       ...initialValues,
     },
     validate: {
-      pack_code: (value) => (value.trim() === '' ? 'Pack code is required' : null),
-      name: (value) => (value.trim() === '' ? 'Name is required' : null),
-      price: (value) => (value <= 0 ? 'Price must be greater than 0' : null),
-      description: (value) => (value.trim() === '' ? 'Description is required' : null),
+      pack_code: (value: string) => (value.trim() === '' ? 'Pack code is required' : null),
+      name: (value: string) => (value.trim() === '' ? 'Name is required' : null),
+      price: (value: number) => (value <= 0 ? 'Price must be greater than 0' : null),
+      description: (value: string) => (value.trim() === '' ? 'Description is required' : null),
     },
   });
 
