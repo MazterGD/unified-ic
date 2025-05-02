@@ -54,7 +54,10 @@ const navigationData: NavigationItem[] = [
     link: '/portal/orders',
     label: 'Orders',
     icon: IconShoppingBag,
-    children: [{ link: '/portal/admin/orders', label: 'Manage Orders' }],
+    children: [
+      { link: '/portal/admin/orders', label: 'Manage Orders' },
+      { link: '/portal/admin/orders/items', label: 'Manage Order Items' },
+    ],
   },
   {
     link: '/',

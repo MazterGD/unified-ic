@@ -1,3 +1,5 @@
+// db.ts
+
 import { NotFoundError } from '@/lib/core/errors';
 import { supabaseServer } from '@/lib/core/supabase';
 import {
@@ -10,6 +12,7 @@ import {
   OrderItemExtended,
   OrderStatus,
 } from '@/lib/store/types';
+import { ItemQuantity, ItemQuantitySearchParams } from '@/lib/store/types';
 
 type OrderWithNestedItems = Omit<Order, 'items'> & {
   order_items: OrderItemExtended[];
@@ -427,4 +430,74 @@ export async function getOrderAudit(orderId: string): Promise<OrderAuditInfo> {
     updated_by: data.updated_by || '',
     last_status_change: data.last_status_change || '',
   };
+}
+
+/**
+ * Fetch aggregated item quantities from the database
+ */
+export async function getItemQuantities(): Promise<ItemQuantity[]> {
+  try {
+    // Fetch item_code, quantity, and name from order_items
+    const { data, error } = await supabaseServer
+      .from('order_items')
+      .select('item_code, quantity, name')
+      .order('item_code');
+
+    if (error) throw error;
+
+    // Use a Map to aggregate quantities and store name by item_code
+    const quantityMap = new Map<string, { quantity: number; name: string }>();
+
+    data.forEach((item) => {
+      const entry = quantityMap.get(item.item_code);
+      if (entry) {
+        entry.quantity += item.quantity;
+      } else {
+        quantityMap.set(item.item_code, {
+          quantity: item.quantity,
+          name: item.name,
+        });
+      }
+    });
+
+    // Convert map to array of objects
+    const aggregatedData: ItemQuantity[] = Array.from(quantityMap.entries()).map(
+      ([item_code, { quantity, name }]) => ({
+        item_code,
+        quantity,
+        name,
+      })
+    );
+
+    return aggregatedData;
+  } catch (error) {
+    console.error('Error fetching item quantities:', error);
+    throw error;
+  }
+}
+
+/**
+ * Search and filter item quantities
+ */
+export async function searchItemQuantities(
+  params: ItemQuantitySearchParams
+): Promise<ItemQuantity[]> {
+  try {
+    const itemQuantities = await getItemQuantities();
+    
+    // Filter by search input (item code)
+    let result = [...itemQuantities];
+    if (params.search?.trim()) {
+      const term = params.search.toLowerCase();
+      result = result.filter((item) => 
+        item.item_code.toLowerCase().includes(term) || 
+        (item.name && item.name.toLowerCase().includes(term))
+      );
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('Error searching item quantities:', error);
+    throw error;
+  }
 }

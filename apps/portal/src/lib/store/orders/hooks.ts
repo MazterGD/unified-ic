@@ -1,3 +1,5 @@
+// hooks.ts
+
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -12,6 +14,7 @@ import {
   Order,
   OrderStatus,
 } from '@/lib/store/types';
+import { ItemQuantity } from '@/lib/store/types';
 
 interface PlaceOrderInput {
   items: (CartItem | CartPackItem)[];
@@ -209,5 +212,31 @@ export function useOrderHooks() {
     useOrder,
     usePlaceOrder,
     useUpdateOrderStatus,
+  };
+}
+
+/**
+ * Hook for item quantity-related operations
+ */
+export function useItemQuantityHooks() {
+  const queryClient = useQueryClient();
+  
+  // Fetch all item quantities (admin only)
+  const useItemQuantities = () => {
+    return useQuery<ItemQuantity[]>({
+      queryKey: ['itemQuantities'],
+      queryFn: async () => {
+        const response = await fetch('/api/store/orders/items');
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error?.message || 'Failed to fetch item quantities');
+        }
+        return response.json();
+      },
+    });
+  };
+
+  return {
+    useItemQuantities
   };
 }
