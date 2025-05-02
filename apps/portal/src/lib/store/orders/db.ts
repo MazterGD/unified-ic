@@ -6,13 +6,17 @@ import {
   CreateOrderInputExtended,
   CreateOrderItemInput,
   CreateOrderPackItem,
+  ItemWithQuantity,
+  ItemQuantitySearchParams,
   Order,
   OrderAuditInfo,
   OrderItem,
   OrderItemExtended,
   OrderStatus,
+  PackWithQuantity,
 } from '@/lib/store/types';
-import { ItemQuantity, ItemQuantitySearchParams } from '@/lib/store/types';
+import { getActiveStoreItems } from '../items/db';
+import { getActiveStorePacks } from '../packs/db';
 
 type OrderWithNestedItems = Omit<Order, 'items'> & {
   order_items: OrderItemExtended[];
@@ -435,41 +439,65 @@ export async function getOrderAudit(orderId: string): Promise<OrderAuditInfo> {
 /**
  * Fetch aggregated item quantities from the database
  */
-export async function getItemQuantities(): Promise<ItemQuantity[]> {
+export async function getItemQuantities(): Promise<{
+  items: ItemWithQuantity[];
+  packs: PackWithQuantity[];
+}> {
   try {
-    // Fetch item_code, quantity, and name from order_items
-    const { data, error } = await supabaseServer
-      .from('order_items')
-      .select('item_code, quantity, name')
-      .order('item_code');
+    // Fetch all active items and packs
+    const [activeItems, activePacks, orderedItems] = await Promise.all([
+      getActiveStoreItems(),
+      getActiveStorePacks(),
+      supabaseServer
+        .from('order_items')
+        .select('item_code, quantity, name, is_pack')
+        .order('item_code'),
+    ]);
 
-    if (error) throw error;
+    if (orderedItems.error) throw orderedItems.error;
 
-    // Use a Map to aggregate quantities and store name by item_code
-    const quantityMap = new Map<string, { quantity: number; name: string }>();
+    // Create maps for ordered quantities
+    const itemQuantityMap = new Map<string, number>();
+    const packQuantityMap = new Map<string, number>();
+    const itemNameMap = new Map<string, string>();
+    const packNameMap = new Map<string, string>();
 
-    data.forEach((item) => {
-      const entry = quantityMap.get(item.item_code);
-      if (entry) {
-        entry.quantity += item.quantity;
+    orderedItems.data?.forEach((item) => {
+      if (item.is_pack) {
+        packQuantityMap.set(
+          item.item_code,
+          (packQuantityMap.get(item.item_code) || 0) + item.quantity
+        );
+        packNameMap.set(item.item_code, item.name);
       } else {
-        quantityMap.set(item.item_code, {
-          quantity: item.quantity,
-          name: item.name,
-        });
+        itemQuantityMap.set(
+          item.item_code,
+          (itemQuantityMap.get(item.item_code) || 0) + item.quantity
+        );
+        itemNameMap.set(item.item_code, item.name);
       }
     });
 
-    // Convert map to array of objects
-    const aggregatedData: ItemQuantity[] = Array.from(quantityMap.entries()).map(
-      ([item_code, { quantity, name }]) => ({
-        item_code,
-        quantity,
-        name,
-      })
-    );
+    // Combine with active items
+    const itemsWithQuantities: ItemWithQuantity[] = activeItems.map((item) => ({
+      item_code: item.item_code,
+      name: item.name,
+      quantity: itemQuantityMap.get(item.item_code) || 0,
+      active: item.active,
+    }));
 
-    return aggregatedData;
+    // Combine with active packs
+    const packsWithQuantities: PackWithQuantity[] = activePacks.map((pack) => ({
+      pack_code: pack.pack_code,
+      name: pack.name,
+      quantity: packQuantityMap.get(pack.pack_code) || 0,
+      active: pack.active,
+    }));
+
+    return {
+      items: itemsWithQuantities,
+      packs: packsWithQuantities,
+    };
   } catch (error) {
     console.error('Error fetching item quantities:', error);
     throw error;
@@ -481,21 +509,33 @@ export async function getItemQuantities(): Promise<ItemQuantity[]> {
  */
 export async function searchItemQuantities(
   params: ItemQuantitySearchParams
-): Promise<ItemQuantity[]> {
+): Promise<{
+  items: ItemWithQuantity[];
+  packs: PackWithQuantity[];
+}> {
   try {
-    const itemQuantities = await getItemQuantities();
+    const { items, packs } = await getItemQuantities();
     
-    // Filter by search input (item code)
-    let result = [...itemQuantities];
+    // Filter by search input
+    let filteredItems = [...items];
+    let filteredPacks = [...packs];
+    
     if (params.search?.trim()) {
       const term = params.search.toLowerCase();
-      result = result.filter((item) => 
+      filteredItems = filteredItems.filter((item) => 
         item.item_code.toLowerCase().includes(term) || 
-        (item.name && item.name.toLowerCase().includes(term))
+        item.name.toLowerCase().includes(term)
+      );
+      filteredPacks = filteredPacks.filter((pack) => 
+        pack.pack_code.toLowerCase().includes(term) || 
+        pack.name.toLowerCase().includes(term)
       );
     }
     
-    return result;
+    return {
+      items: filteredItems,
+      packs: filteredPacks,
+    };
   } catch (error) {
     console.error('Error searching item quantities:', error);
     throw error;

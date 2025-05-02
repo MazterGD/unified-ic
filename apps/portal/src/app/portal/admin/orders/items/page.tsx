@@ -1,3 +1,4 @@
+// app/store/orders/items/page.tsx
 'use client';
 
 import React, { useMemo, useState } from 'react';
@@ -9,40 +10,48 @@ import {
   Container,
   Group,
   Loader,
-  Paper,
   Stack,
   Title,
 } from '@mantine/core';
-import { ItemQuantitySearch, ItemQuantityTable } from '../(components)';
+import { ItemQuantitySearch } from '../(components)';
+import { ItemsTable, PacksTable } from '../(components)';
 import { useItemQuantityHooks } from '@/lib/store/orders/hooks';
 
 export default function ItemQuantitiesPage() {
-  const [searchInput, setSearchInput] = useState<string>('');
+  const [searchInput, setSearchInput] = useState('');
 
   const { useItemQuantities } = useItemQuantityHooks();
-  const { data: itemQuantities, isLoading, error, refetch } = useItemQuantities();
+  const { data, isLoading, error, refetch } = useItemQuantities();
 
-  const filteredItems = useMemo(() => {
-    if (!itemQuantities) return [];
+  const { items, packs } = useMemo(() => {
+    if (!data) return { items: [], packs: [] };
 
-    let result = [...itemQuantities];
+    let filteredItems = [...(data.items || [])];
+    let filteredPacks = [...(data.packs || [])];
+
     if (searchInput.trim()) {
       const term = searchInput.toLowerCase();
-      result = result.filter((item) =>
+      filteredItems = filteredItems.filter((item) =>
         item.item_code.toLowerCase().includes(term) ||
-        (item.name && item.name.toLowerCase().includes(term))
+        item.name.toLowerCase().includes(term)
+      );
+      filteredPacks = filteredPacks.filter((pack) =>
+        pack.pack_code.toLowerCase().includes(term) ||
+        pack.name.toLowerCase().includes(term)
       );
     }
-    return result;
-  }, [itemQuantities, searchInput]);
+
+    return {
+      items: filteredItems,
+      packs: filteredPacks,
+    };
+  }, [data, searchInput]);
 
   return (
-    <Container fluid p="md">
-      <Stack gap="lg">
-        <Group justify="space-between">
-          <Title order={2} c="gray.8">
-            Item Quantities Management
-          </Title>
+    <Container size="xl">
+      <Stack>
+        <Group justify="apart">
+          <Title order={1}>Item Quantities</Title>
           <Button
             leftSection={<IconRefresh size={16} />}
             variant="primary"
@@ -52,29 +61,29 @@ export default function ItemQuantitiesPage() {
           </Button>
         </Group>
 
-        <Paper p="md" radius="md" withBorder>
-          <ItemQuantitySearch
-            searchInput={searchInput}
-            setSearchInputAction={setSearchInput}
-            onSearchAction={() => {}}
-          />
+        <ItemQuantitySearch
+          searchInput={searchInput}
+          onSearchChange={setSearchInput}
+        />
 
-          {isLoading ? (
-            <Center my="xl">
-              <Loader size="md" />
-            </Center>
-          ) : error ? (
-            <Alert
-              icon={<IconAlertCircle size={16} />}
-              title="Error loading item quantities"
-              color="red"
-            >
-              {error instanceof Error ? error.message : 'An unknown error occurred'}
-            </Alert>
-          ) : (
-            <ItemQuantityTable items={filteredItems} />
-          )}
-        </Paper>
+        {isLoading ? (
+          <Center>
+            <Loader />
+          </Center>
+        ) : error ? (
+          <Alert
+            icon={<IconAlertCircle size={16} />}
+            title="Error loading item quantities"
+            color="red"
+          >
+            {error instanceof Error ? error.message : 'An unknown error occurred'}
+          </Alert>
+        ) : (
+          <Stack>
+            <ItemsTable items={items} />
+            <PacksTable packs={packs} />
+          </Stack>
+        )}
       </Stack>
     </Container>
   );

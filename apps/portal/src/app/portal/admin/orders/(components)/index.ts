@@ -4,4 +4,5 @@ export { OrderSearch } from './order-search';
 export { OrderTable } from './order-table';
 
 export { ItemQuantitySearch } from "./item-quantity-search"
-export { ItemQuantityTable } from "./item-quantity-table"
+export { ItemsTable } from './item-quantity-table'
+export { PacksTable } from './item-quantity-table'

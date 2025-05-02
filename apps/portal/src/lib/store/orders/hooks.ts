@@ -14,7 +14,6 @@ import {
   Order,
   OrderStatus,
 } from '@/lib/store/types';
-import { ItemQuantity } from '@/lib/store/types';
 
 interface PlaceOrderInput {
   items: (CartItem | CartPackItem)[];
@@ -221,9 +220,8 @@ export function useOrderHooks() {
 export function useItemQuantityHooks() {
   const queryClient = useQueryClient();
   
-  // Fetch all item quantities (admin only)
   const useItemQuantities = () => {
-    return useQuery<ItemQuantity[]>({
+    return useQuery({
       queryKey: ['itemQuantities'],
       queryFn: async () => {
         const response = await fetch('/api/store/orders/items');

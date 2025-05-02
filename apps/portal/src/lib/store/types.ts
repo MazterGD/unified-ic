@@ -296,6 +296,23 @@ export interface StorePackListResponse {
 }
 
 /**
+ * Response for a list of item quantities
+ */
+export interface ItemWithQuantity {
+  item_code: string;
+  name: string;
+  quantity: number;
+  active: boolean;
+}
+
+export interface PackWithQuantity {
+  pack_code: string;
+  name: string;
+  quantity: number;
+  active: boolean;
+}
+
+/**
  * Parameters for searching item quantities
  */
 export interface ItemQuantitySearchParams {
@@ -304,43 +321,3 @@ export interface ItemQuantitySearchParams {
   offset: number;
 }
 
-/**
- * Pack item relationship
- */
-export interface PackItem {
-  id: string;
-  pack_id: string;
-  item_id: string;
-  quantity: number;
-  item: StoreItem;
-}
-
-/**
- * Item quantity from order_items
- */
-export interface ItemQuantity {
-  item_code: string;
-  name: string;
-  quantity: number;
-}
-
-/**
- * Combined store item with quantity
- */
-export interface ItemWithQuantity extends StoreItem {
-  quantity: number;
-}
-
-/**
- * Combined store pack with quantity
- */
-export interface PackWithQuantity extends StorePack {
-  quantity: number;
-}
-
-/**
- * Parameters for searching items or packs
- */
-export interface InventorySearchParams {
-  search?: string;
-}
